@@ -1,0 +1,76 @@
+name: nightly
+
+on:
+  schedule:
+    # 17:00 UTC = 22:30 Asia/Kolkata, leaving a buffer before local midnight.
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Show what would change and change nothing"
+        type: boolean
+        default: false
+      force:
+        description: "Ignore today's contribution count (testing only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  OLLAMA_MODEL: gemma4:e4b
+  GEMINI_MODEL: gemini-3.5-flash
+  STREAK_TIMEZONE: Asia/Kolkata
+  MAX_REPOS: "8"
+
+jobs:
+  document:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the tool
+        run: pip install -e .
+
+      - name: Restore the local model
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama/models
+          key: ollama-${{ runner.os }}-${{ env.OLLAMA_MODEL }}
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama
+        run: |
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags > /dev/null; then
+              echo "Ollama is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Ollama did not start"
+          tail -n 50 /tmp/ollama.log
+          exit 1
+
+      - name: Pull the local model
+        run: ollama pull "$OLLAMA_MODEL"
+
+      - name: Run
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_LOGIN: ${{ github.repository_owner }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          python -m streakkeeper $ARGS

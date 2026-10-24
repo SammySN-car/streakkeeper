@@ -1,0 +1,6 @@
+.vibe-wise/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
