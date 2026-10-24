@@ -20,6 +20,7 @@ permissions:
 
 env:
   OLLAMA_MODEL: gemma4:e4b
+  OLLAMA_MODELS: /home/runner/ollama-models
   GEMINI_MODEL: gemini-3.5-flash
   STREAK_TIMEZONE: Asia/Kolkata
   MAX_REPOS: "8"
@@ -41,7 +42,7 @@ jobs:
       - name: Restore the local model
         uses: actions/cache@v4
         with:
-          path: ~/.ollama/models
+          path: /home/runner/ollama-models
           key: ollama-${{ runner.os }}-${{ env.OLLAMA_MODEL }}
 
       - name: Install Ollama
@@ -49,6 +50,8 @@ jobs:
 
       - name: Start Ollama
         run: |
+          sudo systemctl stop ollama 2>/dev/null || true
+          mkdir -p "$OLLAMA_MODELS"
           nohup ollama serve > /tmp/ollama.log 2>&1 &
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:11434/api/tags > /dev/null; then
@@ -63,6 +66,9 @@ jobs:
 
       - name: Pull the local model
         run: ollama pull "$OLLAMA_MODEL"
+
+      - name: Show what is cached
+        run: du -sh "$OLLAMA_MODELS" && ls "$OLLAMA_MODELS"
 
       - name: Run
         env:
