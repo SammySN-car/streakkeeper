@@ -90,6 +90,7 @@ ignores today's contribution count, for testing only.
 | `OLLAMA_MODEL` | `gemma4:e4b` | local open-weight model |
 | `STREAK_TIMEZONE` | `Asia/Kolkata` | what "today" means |
 | `MAX_REPOS` | `8` | repositories one night may look at |
+| `EXCLUDE_REPOS` | empty | full names never to touch, comma separated |
 
 ## Limits
 

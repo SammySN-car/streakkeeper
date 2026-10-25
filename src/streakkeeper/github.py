@@ -127,8 +127,22 @@ def _usable(repo: dict) -> bool:
     )
 
 
+def excluded_repos() -> set[str]:
+    """Names the learner never wants touched, from EXCLUDE_REPOS."""
+    raw = os.environ.get("EXCLUDE_REPOS", "")
+    return {name.strip().lower() for name in raw.split(",") if name.strip()}
+
+
+def _wanted(repo: dict, excluded: set[str]) -> bool:
+    """A repository is wanted when it is usable and not on the exclude list."""
+    if not _usable(repo):
+        return False
+    return str(repo.get("full_name", "")).lower() not in excluded
+
+
 def owned_repos() -> list[Repo]:
-    """Repositories the learner owns, excluding forks and archived ones."""
+    """Repositories the learner owns, excluding forks, archived ones and exclusions."""
+    excluded = excluded_repos()
     repos: list[Repo] = []
     page = 1
     while page <= 5:
@@ -140,7 +154,7 @@ def owned_repos() -> list[Repo]:
         repos.extend(
             Repo(str(item["full_name"]), str(item["clone_url"]))
             for item in data
-            if _usable(item)
+            if _wanted(item, excluded)
         )
         if len(data) < 100:
             break

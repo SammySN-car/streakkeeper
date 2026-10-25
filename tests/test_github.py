@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import sys
 import unittest
@@ -9,11 +10,23 @@ from datetime import date
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
-from streakkeeper.github import Repo, rotated_repos, _usable  # noqa: E402
+from streakkeeper.github import (  # noqa: E402
+    Repo,
+    _usable,
+    _wanted,
+    excluded_repos,
+    rotated_repos,
+)
 
 
 def repos(count: int) -> list[Repo]:
     return [Repo(f"owner/r{i}", f"https://github.com/owner/r{i}.git") for i in range(count)]
+
+
+def repo_dict(name: str = "owner/one", **overrides) -> dict:
+    base = {"full_name": name, "fork": False, "archived": False, "disabled": False, "size": 10}
+    base.update(overrides)
+    return base
 
 
 class RotationTest(unittest.TestCase):
@@ -42,14 +55,35 @@ class RotationTest(unittest.TestCase):
 
 class UsableTest(unittest.TestCase):
     def test_a_normal_repository_is_usable(self) -> None:
-        self.assertTrue(_usable({"fork": False, "archived": False, "disabled": False, "size": 120}))
+        self.assertTrue(_usable(repo_dict()))
 
     def test_forks_archived_disabled_and_empty_are_not(self) -> None:
-        base = {"fork": False, "archived": False, "disabled": False, "size": 120}
-        self.assertFalse(_usable({**base, "fork": True}))
-        self.assertFalse(_usable({**base, "archived": True}))
-        self.assertFalse(_usable({**base, "disabled": True}))
-        self.assertFalse(_usable({**base, "size": 0}))
+        self.assertFalse(_usable(repo_dict(fork=True)))
+        self.assertFalse(_usable(repo_dict(archived=True)))
+        self.assertFalse(_usable(repo_dict(disabled=True)))
+        self.assertFalse(_usable(repo_dict(size=0)))
+
+
+class ExclusionTest(unittest.TestCase):
+    def tearDown(self) -> None:
+        os.environ.pop("EXCLUDE_REPOS", None)
+
+    def test_empty_setting_excludes_nothing(self) -> None:
+        self.assertEqual(excluded_repos(), set())
+
+    def test_names_are_trimmed_and_lowercased(self) -> None:
+        os.environ["EXCLUDE_REPOS"] = " Owner/One , OWNER/Two ,, "
+        self.assertEqual(excluded_repos(), {"owner/one", "owner/two"})
+
+    def test_an_excluded_repository_is_not_wanted(self) -> None:
+        self.assertTrue(_wanted(repo_dict(), set()))
+        self.assertFalse(_wanted(repo_dict(), {"owner/one"}))
+
+    def test_exclusion_is_case_insensitive(self) -> None:
+        self.assertFalse(_wanted(repo_dict("Owner/One"), {"owner/one"}))
+
+    def test_a_fork_is_not_wanted_even_when_not_excluded(self) -> None:
+        self.assertFalse(_wanted(repo_dict(fork=True), set()))
 
 
 if __name__ == "__main__":

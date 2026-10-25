@@ -24,6 +24,8 @@ env:
   GEMINI_MODEL: gemini-3.5-flash
   STREAK_TIMEZONE: Asia/Kolkata
   MAX_REPOS: "8"
+  # Never touch these. Full names, comma separated.
+  EXCLUDE_REPOS: "SammySN-car/skills-getting-started-with-github-copilot,SammySN-car/skills-introduction-to-repository-management,SammySN-car/skills-code-with-codespaces,SammySN-car/skills-review-pull-requests,SammySN-car/skills-communicate-using-markdown,SammySN-car/skills-introduction-to-github"
 
 jobs:
   document:
