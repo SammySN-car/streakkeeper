@@ -12,9 +12,11 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from streakkeeper.github import (  # noqa: E402
     Repo,
+    _noreply,
     _usable,
     _wanted,
     excluded_repos,
+    identity,
     rotated_repos,
 )
 
@@ -84,6 +86,23 @@ class ExclusionTest(unittest.TestCase):
 
     def test_a_fork_is_not_wanted_even_when_not_excluded(self) -> None:
         self.assertFalse(_wanted(repo_dict(fork=True), set()))
+
+
+class IdentityTest(unittest.TestCase):
+    def tearDown(self) -> None:
+        for name in ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL"):
+            os.environ.pop(name, None)
+
+    def test_the_noreply_address_is_the_one_github_attributes(self) -> None:
+        self.assertEqual(
+            _noreply("octocat", 583231),
+            "583231+octocat@users.noreply.github.com",
+        )
+
+    def test_a_configured_identity_wins_and_needs_no_network(self) -> None:
+        os.environ["GIT_AUTHOR_NAME"] = "Someone"
+        os.environ["GIT_AUTHOR_EMAIL"] = "someone@example.com"
+        self.assertEqual(identity(), ("Someone", "someone@example.com"))
 
 
 if __name__ == "__main__":

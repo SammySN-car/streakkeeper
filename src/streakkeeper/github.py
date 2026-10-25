@@ -195,10 +195,34 @@ def discard(workdir: Path) -> None:
     shutil.rmtree(workdir, ignore_errors=True)
 
 
+def _noreply(login: str, user_id: int) -> str:
+    """The address GitHub always attributes to the account, never a real inbox."""
+    return f"{user_id}+{login}@users.noreply.github.com"
+
+
+def identity() -> tuple[str, str]:
+    """Who the commit belongs to.
+
+    A commit only counts towards a streak when its author email is associated
+    with the account, so the default is the account behind GH_PAT and its
+    no-reply address, not a made-up tool name.
+    """
+    name = os.environ.get("GIT_AUTHOR_NAME", "").strip()
+    email = os.environ.get("GIT_AUTHOR_EMAIL", "").strip()
+    if name and email:
+        return name, email
+
+    data, _ = _request(f"{API}/user")
+    login = str(data["login"])
+    return (
+        name or str(data.get("name") or login),
+        email or _noreply(login, int(data["id"])),
+    )
+
+
 def commit_and_push(workdir: Path, path: str, message: str) -> None:
     """Commit one changed file and push it."""
-    name = os.environ.get("GIT_AUTHOR_NAME", "streakkeeper")
-    email = os.environ.get("GIT_AUTHOR_EMAIL", "streakkeeper@users.noreply.github.com")
+    name, email = identity()
 
     _git(["config", "user.name", name], cwd=workdir)
     _git(["config", "user.email", email], cwd=workdir)
