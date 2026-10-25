@@ -3,7 +3,7 @@ name: nightly
 on:
   schedule:
     # TEMPORARY: single run a few minutes from now, to prove the scheduler fires.
-    - cron: "52 0 * * *"
+    - cron: "9 1 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
