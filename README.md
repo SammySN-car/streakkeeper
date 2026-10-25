@@ -11,8 +11,8 @@ that one file.
 
 ## What happens each night
 
-1. **Gate.** Ask GitHub how many contributions you have today, in your own
-   timezone. If it is more than zero, stop.
+1. **Gate.** Ask GitHub how many contributions it credits on the current UTC
+   day. If it is more than zero, stop.
 2. **Rotate.** Start from a different repository each night, then shallow-clone
    one of them.
 3. **Scan.** Walk the Python syntax tree and list the places where
@@ -88,7 +88,7 @@ ignores today's contribution count, for testing only.
 | `GEMINI_MODEL` | `gemini-3.5-flash` | reviewer |
 | `REVIEW_MODELS` | primary, then `gemini-3.1-flash-lite` | reviewers to try in order |
 | `OLLAMA_MODEL` | `gemma4:e4b` | local open-weight model |
-| `STREAK_TIMEZONE` | `Asia/Kolkata` | what "today" means |
+| `STREAK_TIMEZONE` | `Asia/Kolkata` | the timezone used to pick each night's starting repository |
 | `MAX_REPOS` | `8` | repositories one night may look at |
 | `EXCLUDE_REPOS` | empty | full names never to touch, comma separated |
 

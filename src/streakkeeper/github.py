@@ -1,6 +1,6 @@
 """Everything that talks to GitHub.
 
-- contributions_today(): how many contributions the learner has today.
+- contributions_today(): how many contributions GitHub credits on the UTC day.
 - owned_repos(): the repositories to rotate through.
 - rotated_repos(): which repository to start from tonight.
 - clone(): a shallow clone inside the runner's temporary directory.
@@ -96,9 +96,25 @@ def login() -> str:
     return str(data["login"])
 
 
+def _utc_stamp(moment: datetime) -> str:
+    """Format an instant the way GitHub's DateTime scalar reads it.
+
+    A local timestamp such as "2026-10-26T00:00:00+05:30" is read as a
+    wall-clock UTC time. That put local midnight five and a half hours in the
+    future, so the gate reported zero every night until 05:30 IST.
+    """
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def contributions_today() -> int:
-    """How many contributions the learner has made today, in their timezone."""
-    now = local_now()
+    """How many contributions GitHub credits on the current UTC day.
+
+    The contribution calendar buckets by UTC date, so a commit made at 01:00
+    IST still fills the previous UTC square. Counting the UTC day keeps the
+    gate honest: it asks about the square a commit made now would actually
+    fill, rather than a local day GitHub never uses.
+    """
+    now = local_now().astimezone(timezone.utc)
     start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     data, _ = _request(
         GRAPHQL,
@@ -106,8 +122,8 @@ def contributions_today() -> int:
             "query": CONTRIBUTIONS_QUERY,
             "variables": {
                 "login": login(),
-                "from": start.isoformat(),
-                "to": now.isoformat(),
+                "from": _utc_stamp(start),
+                "to": _utc_stamp(now),
             },
         },
     )

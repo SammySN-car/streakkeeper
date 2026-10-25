@@ -6,10 +6,12 @@ import os
 import pathlib
 import sys
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
+import streakkeeper.github as github_module  # noqa: E402
 from streakkeeper.github import (  # noqa: E402
     Repo,
     _noreply,
@@ -103,6 +105,42 @@ class IdentityTest(unittest.TestCase):
         os.environ["GIT_AUTHOR_NAME"] = "Someone"
         os.environ["GIT_AUTHOR_EMAIL"] = "someone@example.com"
         self.assertEqual(identity(), ("Someone", "someone@example.com"))
+
+
+class ContributionsWindowTest(unittest.TestCase):
+    """The gate must ask about the UTC day a commit would actually fill."""
+
+    def _call(self, local_moment: datetime) -> tuple[int, dict]:
+        sent: dict = {}
+
+        def fake_request(url, payload=None):
+            sent.update(payload["variables"])
+            total = {"data": {"user": {"contributionsCollection": {
+                "contributionCalendar": {"totalContributions": 11}}}}}
+            return total, {}
+
+        with mock.patch.object(github_module, "local_now", return_value=local_moment), \
+             mock.patch.object(github_module, "_request", side_effect=fake_request), \
+             mock.patch.object(github_module, "login", return_value="someone"):
+            return github_module.contributions_today(), sent
+
+    def test_early_morning_local_time_asks_about_the_previous_utc_day(self) -> None:
+        moment = datetime(2026, 10, 26, 2, 40, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        total, sent = self._call(moment)
+        self.assertEqual(total, 11)
+        self.assertEqual(sent["from"], "2026-10-25T00:00:00Z")
+        self.assertEqual(sent["to"], "2026-10-25T21:10:00Z")
+
+    def test_no_offset_is_sent_because_github_reads_it_as_utc(self) -> None:
+        moment = datetime(2026, 10, 26, 2, 40, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        _, sent = self._call(moment)
+        for key in ("from", "to"):
+            self.assertTrue(sent[key].endswith("Z"), sent[key])
+            self.assertNotIn("+", sent[key], sent[key])
+
+    def test_the_stamp_helper_converts_before_formatting(self) -> None:
+        moment = datetime(2026, 10, 26, 0, 0, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        self.assertEqual(github_module._utc_stamp(moment), "2026-10-25T18:30:00Z")
 
 
 if __name__ == "__main__":
