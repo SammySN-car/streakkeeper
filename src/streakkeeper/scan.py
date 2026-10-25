@@ -133,6 +133,30 @@ def _definitions(node: ast.AST, parent: str):
             yield from _definitions(child, parent)
 
 
+def _headings(lines: list[str]) -> list[tuple[int, int, str]]:
+    """Heading positions, ignoring anything inside a fenced code block.
+
+    A shell comment such as "# Runs on localhost" is not a heading. Treating
+    it as one cuts a section in the wrong place, which makes the section look
+    thin and invites a rewrite that would delete the code block.
+    """
+    found: list[tuple[int, int, str]] = []
+    in_fence = False
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fence = not in_fence
+            continue
+        if in_fence or not stripped.startswith("#"):
+            continue
+        found.append((index, len(stripped) - len(stripped.lstrip("#")), stripped))
+    return found
+
+
+def _has_fence(lines: list[str]) -> bool:
+    return any(line.strip().startswith(("```", "~~~")) for line in lines)
+
+
 def _readme_candidates(workdir: Path, path: Path) -> list[Candidate]:
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -140,7 +164,7 @@ def _readme_candidates(workdir: Path, path: Path) -> list[Candidate]:
         return []
 
     rel = path.relative_to(workdir).as_posix()
-    headings = [(i, len(line) - len(line.lstrip("#")), line) for i, line in enumerate(lines) if line.lstrip().startswith("#")]
+    headings = _headings(lines)
     out: list[Candidate] = []
 
     for index, (line_no, level, heading) in enumerate(headings):
@@ -149,7 +173,14 @@ def _readme_candidates(workdir: Path, path: Path) -> list[Candidate]:
             if later_level <= level:
                 end = later_no
                 break
-        body = [line.strip() for line in lines[line_no + 1 : end] if line.strip()]
+
+        section = lines[line_no + 1 : end]
+        if _has_fence(section):
+            # A section that carries a command or an example is left alone:
+            # rewriting it would delete the code block.
+            continue
+
+        body = [line.strip() for line in section if line.strip()]
         text = " ".join(body)
         if len(text) < THIN_SECTION_CHARS:
             name = heading.lstrip("#").strip()

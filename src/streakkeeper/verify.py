@@ -105,19 +105,31 @@ def apply(old_source: str, candidate, new_text: str) -> str:
     return replace_docstring(old_source, candidate, new_text)
 
 
+def _section_end(lines: list[str], start: int, level: int) -> int:
+    """Where a Markdown section stops, ignoring headings inside code fences."""
+    in_fence = False
+    for index in range(start + 1, len(lines)):
+        stripped = lines[index].strip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fence = not in_fence
+            continue
+        if in_fence or not stripped.startswith("#"):
+            continue
+        if len(stripped) - len(stripped.lstrip("#")) <= level:
+            return index
+    return len(lines)
+
+
 def replace_section(old_source: str, candidate, new_text: str) -> str:
     """Replace the body under a Markdown heading, keeping the heading."""
     lines = old_source.splitlines()
     start = candidate.lineno - 1
     level = len(lines[start]) - len(lines[start].lstrip("#"))
+    end = _section_end(lines, start, level)
 
-    end = len(lines)
-    for index in range(start + 1, len(lines)):
-        stripped = lines[index].lstrip()
-        if stripped.startswith("#"):
-            if len(stripped) - len(stripped.lstrip("#")) <= level:
-                end = index
-                break
+    body = lines[start + 1 : end]
+    if any(line.strip().startswith(("```", "~~~")) for line in body):
+        raise ValueError("refusing to replace a section that contains a code block")
 
     block = ["", *[line.rstrip() for line in new_text.strip().splitlines()], ""]
     merged = lines[: start + 1] + block + lines[end:]

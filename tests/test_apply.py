@@ -11,6 +11,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
 from streakkeeper.scan import Candidate  # noqa: E402
 from streakkeeper.verify import (  # noqa: E402
+    _section_end,
     apply,
     code_unchanged,
     replace_docstring,
@@ -128,6 +129,40 @@ class ReplaceSectionTest(unittest.TestCase):
             apply(source, candidate, "Return one."),
             replace_docstring(source, candidate, "Return one."),
         )
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+class SectionFenceTest(unittest.TestCase):
+    def test_replacing_a_section_that_holds_a_code_block_is_refused(self) -> None:
+        source = (
+            "# Demo\n"
+            "\n"
+            "### Ollama\n"
+            "\n"
+            "```bash\n"
+            "ollama pull llama3.2\n"
+            "# Runs on localhost:11434 by default\n"
+            "```\n"
+        )
+        candidate = Candidate("README.md", 3, 8, "readme-section", "Ollama", "thin", None)
+
+        with self.assertRaises(ValueError):
+            replace_section(source, candidate, "Some prose.")
+
+    def test_a_comment_in_a_fence_does_not_end_the_section(self) -> None:
+        lines = [
+            "### Ollama",
+            "",
+            "```bash",
+            "ollama pull llama3.2",
+            "# Runs here",
+            "```",
+            "",
+            "Trailing prose.",
+        ]
+        self.assertEqual(_section_end(lines, 0, 3), 8)
 
 
 if __name__ == "__main__":

@@ -125,5 +125,61 @@ class ScanTest(unittest.TestCase):
             self.assertEqual(find_candidates(root), [])
 
 
+class ReadmeFenceTest(unittest.TestCase):
+    def test_a_comment_inside_a_code_block_is_not_a_heading(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write(
+                root,
+                "README.md",
+                "# Demo\n"
+                "\n"
+                "A project that does something useful, described in a full sentence.\n"
+                "\n"
+                "### Ollama\n"
+                "\n"
+                "```bash\n"
+                "ollama pull llama3.2\n"
+                "# Runs on localhost:11434 by default\n"
+                "```\n",
+            )
+            found = [c for c in find_candidates(root) if c.kind == "readme-section"]
+            self.assertEqual(found, [])
+
+    def test_a_section_that_is_only_a_command_is_left_alone(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write(
+                root,
+                "README.md",
+                "# Demo\n"
+                "\n"
+                "```bash\n"
+                "make test\n"
+                "```\n"
+                "\n"
+                "## Usage\n"
+                "\n"
+                "Enough detail about usage to be considered useful here.\n",
+            )
+            found = [c for c in find_candidates(root) if c.kind == "readme-section"]
+            self.assertEqual(found, [])
+
+    def test_a_heading_with_nothing_under_it_is_still_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write(
+                root,
+                "README.md",
+                "# Demo\n"
+                "\n"
+                "A project that does something useful, described in a full sentence.\n"
+                "\n"
+                "## Empty\n",
+            )
+            found = [c for c in find_candidates(root) if c.kind == "readme-section"]
+            self.assertEqual([c.name for c in found], ["Empty"])
+
+
 if __name__ == "__main__":
     unittest.main()
