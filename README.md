@@ -106,4 +106,4 @@ ignores today's contribution count, for testing only.
 python -m unittest discover -s tests
 ```
 
-64 tests, no network and no model needed.
+71 tests, no network and no model needed.
