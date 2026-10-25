@@ -2,8 +2,8 @@ name: nightly
 
 on:
   schedule:
-    # TEMPORARY: single run a few minutes from now, to prove the scheduler fires.
-    - cron: "9 1 * * *"
+    # 17:00 UTC = 22:30 Asia/Kolkata, leaving a buffer before local midnight.
+    - cron: "0 17 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -78,5 +78,7 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           GITHUB_LOGIN: ${{ github.repository_owner }}
         run: |
-          # TEMPORARY: schedule test. Hard-wired dry run, so it cannot commit.
-          python -m streakkeeper --dry-run --force
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          python -m streakkeeper $ARGS

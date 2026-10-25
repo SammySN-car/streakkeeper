@@ -5,3 +5,5 @@ __pycache__/
 *.egg-info/
 .env
 .env.*
+# local draft of the DEV submission post
+DEV_POST_DRAFT.md
