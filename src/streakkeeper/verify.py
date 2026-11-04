@@ -30,7 +30,14 @@ def _strip_docstrings(tree: ast.AST) -> ast.AST:
         if isinstance(node, _DOC_OWNERS):
             body = node.body
             if body and _is_docstring(body[0]):
-                node.body = body[1:] or [ast.Pass()]
+                rest = body[1:]
+                # A function or class needs a statement after its docstring; a
+                # module does not, and adding a Pass there would make an empty
+                # file look different from the version that only gained a
+                # docstring.
+                if not rest and isinstance(node, _DEFS):
+                    rest = [ast.Pass()]
+                node.body = rest
     return tree
 
 
@@ -81,7 +88,7 @@ def replace_docstring(old_source: str, candidate, new_text: str) -> str:
     node = _find_node(tree, candidate)
     lines = old_source.splitlines(keepends=True)
 
-    if candidate.kind == "module":
+    if candidate.kind == "module" or not node.body:
         indent = ""
     else:
         indent = " " * node.body[0].col_offset
@@ -94,6 +101,11 @@ def replace_docstring(old_source: str, candidate, new_text: str) -> str:
         start = doc.lineno - 1
         end = doc.end_lineno
         return "".join(lines[:start] + [block] + lines[end:])
+
+    if not body:
+        # A module with no statements: the docstring becomes its first line,
+        # above any comments. Comments are not statements, so they survive.
+        return block + old_source
 
     insert_at = body[0].lineno - 1
     return "".join(lines[:insert_at] + [block] + lines[insert_at:])

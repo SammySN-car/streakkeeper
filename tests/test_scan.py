@@ -181,5 +181,28 @@ class ReadmeFenceTest(unittest.TestCase):
             self.assertEqual([c.name for c in found], ["Empty"])
 
 
+class EmptyModuleTest(unittest.TestCase):
+    """A file with no statements has nothing to document."""
+
+    def test_an_empty_file_yields_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write(root, "pkg/__init__.py", "")
+            self.assertEqual(find_candidates(root), [])
+
+    def test_a_comment_only_file_yields_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write(root, "pkg/__init__.py", "# package marker\n\n# and nothing else\n")
+            self.assertEqual(find_candidates(root), [])
+
+    def test_a_module_with_code_is_still_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            write(root, "thing.py", "VALUE = 1\n")
+            found = [c for c in find_candidates(root) if c.kind == "module"]
+            self.assertEqual([c.path for c in found], ["thing.py"])
+
+
 if __name__ == "__main__":
     unittest.main()

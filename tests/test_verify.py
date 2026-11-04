@@ -8,7 +8,8 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
-from streakkeeper.verify import code_unchanged  # noqa: E402
+from streakkeeper.scan import Candidate  # noqa: E402
+from streakkeeper.verify import code_unchanged, replace_docstring  # noqa: E402
 
 
 class CodeUnchangedTest(unittest.TestCase):
@@ -41,6 +42,24 @@ class CodeUnchangedTest(unittest.TestCase):
         old = "def a():\n    return 1\n\n\ndef b():\n    return 2\n"
         new = "def a():\n    return 1\n"
         self.assertFalse(code_unchanged(old, new))
+
+
+class ReplaceDocstringTest(unittest.TestCase):
+    """An empty module must not crash the unattended run."""
+
+    def _candidate(self) -> Candidate:
+        return Candidate("pkg/__init__.py", 1, 1, "module", "__init__", "missing", None)
+
+    def test_an_empty_module_can_take_a_docstring(self) -> None:
+        new = replace_docstring("", self._candidate(), "Package marker.")
+        self.assertEqual(new, '"""Package marker."""\n')
+        self.assertTrue(code_unchanged("", new))
+
+    def test_comments_survive_when_a_docstring_is_inserted(self) -> None:
+        old = "# package marker\n"
+        new = replace_docstring(old, self._candidate(), "Package marker.")
+        self.assertIn("# package marker", new)
+        self.assertTrue(code_unchanged(old, new))
 
 
 if __name__ == "__main__":

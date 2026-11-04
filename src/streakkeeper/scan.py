@@ -94,7 +94,9 @@ def _python_candidates(workdir: Path, path: Path) -> list[Candidate]:
     out: list[Candidate] = []
 
     module_doc = ast.get_docstring(tree)
-    if _needs_work(module_doc):
+    # A file with no statements has nothing to describe. Proposing it invites a
+    # docstring invented from the filename, and leaves verify with an empty body.
+    if tree.body and _needs_work(module_doc):
         out.append(Candidate(rel, 1, 1, "module", path.stem, _reason(module_doc), module_doc))
 
     for kind, node in _definitions(tree, "module"):
