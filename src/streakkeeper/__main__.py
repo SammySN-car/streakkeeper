@@ -92,6 +92,7 @@ def _document(repo, workdir, shortlist, dry_run: bool) -> int | None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Loads the environment and parses command-line arguments, accepting --dry-run and --force flags. It executes the core logic using these parsed arguments. If the execution raises a RuntimeError, it prints the error message to standard error and returns an exit code of 1."""
     env.load()
 
     parser = argparse.ArgumentParser(prog="streakkeeper")
