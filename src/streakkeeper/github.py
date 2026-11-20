@@ -88,7 +88,7 @@ def _request(url: str, payload: dict | None = None):
 
 
 def login() -> str:
-    """Whose contributions we are counting."""
+    """Retrieves the GitHub login, prioritizing the GITHUB_LOGIN environment variable if it is configured. If the environment variable is not set, it executes an API request to the user endpoint. The function then returns the login string extracted from the response data."""
     configured = os.environ.get("GITHUB_LOGIN", "").strip()
     if configured:
         return configured
